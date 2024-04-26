@@ -41,12 +41,12 @@ def chinese_word_cut(mytext):
 
 
 def get_text(path):
-    with open(path, 'r', encoding='utf-8-sig') as f,open('D:/zzh/seg3.txt', 'a+', encoding='utf-8') as targetFile:
+    with open(path, 'r', encoding='GBK') as f,open('D:/zzh/seg2.txt', 'a+', encoding='utf-8') as targetFile:
         reader = csv.reader(f)
         i = 0
         for row in reader:
-            if row[0] != '日期':
-                text = row[2]
+            if row[0] != 'appln_id':
+                text = row[6]
                 result_list = chinese_word_cut(text)
                 data_set.append(result_list)
                 output = ' '.join(result_list)
@@ -54,11 +54,9 @@ def get_text(path):
                 targetFile.write('\n')
                 print('写入成功！')
                 i += 1
-            if i == 20:
-                break
 
 data_set=[]
-path = 'D:/zzh/test1-99.csv'
+path = 'D:/zzh/out.csv'
 targetTxt = 'D:/zzh/seg.txt'
 get_text(path)
 print(data_set)
@@ -70,13 +68,13 @@ print(data_set)
 #     targetFile.write('\n')
 #     print('写入成功！')
 # print(result_list)
+
 dictionary = corpora.Dictionary(data_set)  # 构建词典
 corpus = [dictionary.doc2bow(text) for text in data_set]  #表示为第几个单词出现了几次
 print(dictionary.token2id)
-lda = LdaModel(corpus=corpus, num_topics=5, id2word = dictionary, passes=30,random_state = 1)   #分为10个主题
-topic_list=lda.print_topics()
-print(topic_list)
-
+lda = LdaModel(corpus=corpus, num_topics=6, id2word = dictionary, passes=30,random_state = 1)
+for topic in lda.print_topics(num_words=6):
+    print(topic)
 # for i in lda.get_document_topics(corpus)[:]:
 #     listj = []
 #     for j in i:
@@ -84,7 +82,30 @@ print(topic_list)
 #     bz = listj.index(max(listj))
 #     print(i[bz][0])
 
-
 data = pyLDAvis.gensim.prepare(lda, corpus, dictionary)
-pyLDAvis.save_html(data, 'D:/zzh/topic.html')
-# print("success!")
+pyLDAvis.save_html(data, 'D:/zzh/topic2.html')
+print("success!")
+
+# 创建一个空的 DataFrame 以存储主题概率
+topic_columns = [f"Topic_{i}" for i in range(lda.num_topics)]
+result_df = pd.DataFrame(columns=topic_columns)
+
+# 遍历文本
+for i, doc in enumerate(corpus):
+    doc_topics = lda.get_document_topics(doc)
+
+    # 创建一个字典，表示主题概率
+    topic_prob_dict = {f"Topic_{index}": prob for index, prob in doc_topics}
+
+    # 如果主题不存在，将其概率设置为0
+    missing_topics = set(topic_columns) - set(topic_prob_dict.keys())
+    for missing_topic in missing_topics:
+        topic_prob_dict[missing_topic] = 0.0
+
+    # 将主题概率添加到 DataFrame
+    result_df = pd.concat([result_df, pd.DataFrame(topic_prob_dict, index=[i])], ignore_index=True)
+
+# 重置索引
+result_df = result_df.reset_index(drop=True)
+result_df.to_excel('D:/zzh/result2.xlsx', index=False)
+print("success!")
